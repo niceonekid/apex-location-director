@@ -58,6 +58,20 @@ async fn clear(udid: String) -> Value {
     apex_core::usb::handle(json!({ "op": "clear", "udid": udid })).await
 }
 
+/// Save this phone's pairing file to Downloads, for the iPhone app to import.
+#[tauri::command]
+async fn export_pairing(app: AppHandle, udid: String) -> Value {
+    let path = match app.path().download_dir() {
+        Ok(d) => d.join("apex-pairing.plist"),
+        Err(e) => return json!({ "ok": false, "error": format!("Can't find your Downloads folder: {e}") }),
+    };
+    let Some(path) = path.to_str().map(str::to_owned) else {
+        return json!({ "ok": false, "error": "Downloads path isn't valid UTF-8." });
+    };
+    let res = apex_core::usb::handle(json!({ "op": "pairfile", "udid": udid, "path": &path })).await;
+    if res["ok"] == json!(true) { json!({ "ok": true, "path": path }) } else { res }
+}
+
 /// Check a license key against the embedded public key. Offline, instant.
 #[tauri::command]
 fn verify_license(key: String) -> bool {
@@ -76,6 +90,7 @@ pub fn run() {
             set_location,
             play_route,
             clear,
+            export_pairing,
             verify_license,
         ])
         .run(tauri::generate_context!())

@@ -356,6 +356,7 @@ function updateSetupSteps() {
   document.getElementById("btn-pair").disabled = !p || paired;
   document.getElementById("btn-devmode").disabled = !paired;
   document.getElementById("btn-prepare").disabled = !paired;
+  document.getElementById("btn-pairfile").disabled = !paired;
   setStepStatus("status-pair", paired ? "Paired" : "", paired ? "done" : "");
   setStepStatus("status-devmode", devmode ? "On" : "", devmode ? "done" : "");
 }
@@ -397,6 +398,15 @@ document.getElementById("btn-prepare").onclick = async () => {
     await call("prepare", { udid: state.udid });
     setStepStatus("status-prepare", "Ready. Click Done.", "done");
   } catch (e) { setStepStatus("status-prepare", e.message, "error"); }
+};
+
+document.getElementById("btn-pairfile").onclick = async () => {
+  if (!state.udid) return;
+  setStepStatus("status-pairfile", "Saving…");
+  try {
+    const res = await call("export_pairing", { udid: state.udid });
+    setStepStatus("status-pairfile", "Saved to " + res.path, "done");
+  } catch (e) { setStepStatus("status-pairfile", e.message, "error"); }
 };
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
