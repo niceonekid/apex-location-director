@@ -99,6 +99,22 @@ pub struct LocationSession {
 
 impl LocationSession {
     pub async fn connect(provider: &dyn IdeviceProvider) -> Result<Self, IdeviceError> {
+        // The RSD/tunnel handshake over the on-device loopback VPN is timing-
+        // sensitive and sometimes drops mid-setup (BrokenPipe). Retry a few times.
+        let mut last = None;
+        for attempt in 0..3 {
+            if attempt > 0 {
+                tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+            }
+            match Self::connect_once(provider).await {
+                Ok(s) => return Ok(s),
+                Err(e) => last = Some(e),
+            }
+        }
+        Err(last.expect("loop runs at least once"))
+    }
+
+    async fn connect_once(provider: &dyn IdeviceProvider) -> Result<Self, IdeviceError> {
         let proxy = CoreDeviceProxy::connect(provider).await?;
         let rsd_port = proxy.tunnel_info().server_rsd_port;
         let mut adapter = proxy.create_software_tunnel()?.to_async_handle();
